@@ -4,23 +4,25 @@ require 'sqlite3'
 require 'logger'
 require 'date'
 require 'cgi'
-require 'selenium-webdriver'
 
-# Configure Selenium to use a headless browser
-options = Selenium::WebDriver::Chrome::Options.new
-options.add_argument('--headless') # Run in headless mode (without UI)
-options.add_argument('--disable-gpu')
-options.add_argument('--no-sandbox')
+# Set up a logger to log the scraped data
+logger = Logger.new(STDOUT)
 
-# Open the page using Selenium WebDriver
-driver = Selenium::WebDriver.for :chrome, options: options
-driver.get('https://www.kentish.tas.gov.au/services/building-and-planning-services/planningapp')
+# Define the URL of the page
+url = 'https://www.westcoast.tas.gov.au/public-and-environmental-health/planning/planning-applications'
 
-# Give the page some time to load content (optional)
-sleep 2
+# Step 1: Fetch the page content
+begin
+  logger.info("Fetching page content from: #{url}")
+  page_html = open(url).read
+  logger.info("Successfully fetched page content.")
+rescue => e
+  logger.error("Failed to fetch page content: #{e}")
+  exit
+end
 
-# Parse the page source using Nokogiri
-doc = Nokogiri::HTML(driver.page_source)
+# Step 2: Parse the page content using Nokogiri
+doc = Nokogiri::HTML(page_html)
 
 # Step 3: Initialize the SQLite database
 db = SQLite3::Database.new "data.sqlite"
