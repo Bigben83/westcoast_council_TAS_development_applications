@@ -63,22 +63,27 @@ date_scraped = Date.today.to_s
 
 doc.css('.uael-post__inner-wrap').each do |item|
   # Extract Council Reference & Address from Title
-  title_text = item.at_css('.uael-post__title a')&.text&.strip || ''
-  if title_text =~ /(DA\d{4}\/\d{2}):\s*(.+)/
-    council_reference = $1
-    address = $2
-  else
-    council_reference = 'Council Reference not found'
-    address = 'Address not found'
-  end
+  title_node = item.at_css('.uael-post__title a')
+title_text = title_node ? title_node.text.strip : ''
 
-  # Extract Description and On Notice To date from excerpt
-  excerpt_text = item.at_css('.uael-post__excerpt')&.text&.strip || ''
-  description = excerpt_text.split('Representations must').first&.strip || 'Description not found'
-  on_notice_to = excerpt_text[/Representations must be made by (.+?)\./, 1]&.strip || 'On Notice To not found'
+if title_text =~ /(DA\d{4}\/\d{2}):\s*(.+)/
+  council_reference = $1
+  address = $2
+else
+  council_reference = 'Council Reference not found'
+  address = 'Address not found'
+end
 
-  # Extract Detail URL
-  detail_url = item.at_css('.uael-post__title a')&.[]('href') || ''
+excerpt_node = item.at_css('.uael-post__excerpt')
+excerpt_text = excerpt_node ? excerpt_node.text.strip : ''
+
+description = excerpt_text.split('Representations must').first
+description = description ? description.strip : 'Description not found'
+
+on_notice_to_match = excerpt_text.match(/Representations must be made by (.+?)\./)
+on_notice_to = on_notice_to_match ? on_notice_to_match[1].strip : 'On Notice To not found'
+
+detail_url = title_node ? title_node['href'] : ''
 
   # Log extracted data
   logger.info("Council Reference: #{council_reference}")
