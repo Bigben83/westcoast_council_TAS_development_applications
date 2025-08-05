@@ -29,7 +29,7 @@ db = SQLite3::Database.new "data.sqlite"
 
 # Create table
 db.execute <<-SQL
-  CREATE TABLE IF NOT EXISTS westcoast (
+  CREATE TABLE IF NOT EXISTS west_coast (
     id INTEGER PRIMARY KEY,
     description TEXT,
     date_scraped TEXT,
