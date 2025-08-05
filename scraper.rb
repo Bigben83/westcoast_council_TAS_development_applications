@@ -9,7 +9,7 @@ require 'cgi'
 logger = Logger.new(STDOUT)
 
 # Define the URL of the page
-url = 'https://www.westcoast.tas.gov.au/public-and-environmental-health/planning/planning-applications/'
+url = 'https://www.westcoast.tas.gov.au/planning-and-development/planning/advertised-development-applications/'
 
 # Step 1: Fetch the page content
 begin
