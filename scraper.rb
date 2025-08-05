@@ -61,62 +61,44 @@ document_description = ''
 date_scraped = Date.today.to_s
 
 
-# Loop through all the card listing items on the main page
-doc.css('.card-listing__item').each_with_index do |item, index|
-  # Extract the council reference (from the card-title)
-  council_reference = item.at_css('.card-listing__title') ? item.at_css('.card-listing__title').text.strip : 'Council Reference not found'
-
-  # Extract the address (from the card-content)
-  address = item.at_css('.card-listing__content p') ? item.at_css('.card-listing__content p').text.strip : 'Address not found'
-
-  # Extract the URL for the individual application
-  application_url = item.at_css('.card-listing__link')['href'] if item.at_css('.card-listing__link')
-
-  # Step 2.5: Visit the application URL for detailed information
-  begin
-    logger.info("Fetching detailed application from: #{application_url}")
-    detail_page_html = open(application_url).read
-    detail_doc = Nokogiri::HTML(detail_page_html)
-
-    # Extract the description, address, and date received from the detailed page
-    description = detail_doc.at_css('p:contains("Proposal:")') ? detail_doc.at_css('p:contains("Proposal:")').text.sub('Proposal: ', '').strip : 'Description not found'
-    address = detail_doc.at_css('p:contains("Address:")') ? detail_doc.at_css('p:contains("Address:")').text.sub('Address: ', '').strip : 'Address not found'
-    date_received = detail_doc.at_css('p:contains("Dated:")') ? detail_doc.at_css('p:contains("Dated:")').text.sub('Dated: ', '').strip : 'Date not found'
-
-    # Extract supporting document link (if it exists)
-    supporting_documents_link = detail_doc.at_css('a:contains("SUPPORTING DOCUMENTS")') ? detail_doc.at_css('a:contains("SUPPORTING DOCUMENTS")')['href'] : 'Supporting documents not found'
-
-  rescue => e
-    logger.error("Failed to fetch detailed application: #{e}")
-    description = 'Description not found'
+doc.css('.uael-post__inner-wrap').each do |item|
+  # Extract Council Reference & Address from Title
+  title_text = item.at_css('.uael-post__title a')&.text&.strip || ''
+  if title_text =~ /(DA\d{4}\/\d{2}):\s*(.+)/
+    council_reference = $1
+    address = $2
+  else
+    council_reference = 'Council Reference not found'
     address = 'Address not found'
-    date_received = 'Date not found'
-    supporting_documents_link = 'Supporting documents not found'
   end
 
-  # Log the extracted data
+  # Extract Description and On Notice To date from excerpt
+  excerpt_text = item.at_css('.uael-post__excerpt')&.text&.strip || ''
+  description = excerpt_text.split('Representations must').first&.strip || 'Description not found'
+  on_notice_to = excerpt_text[/Representations must be made by (.+?)\./, 1]&.strip || 'On Notice To not found'
+
+  # Extract Detail URL
+  detail_url = item.at_css('.uael-post__title a')&.[]('href') || ''
+
+  # Log extracted data
   logger.info("Council Reference: #{council_reference}")
   logger.info("Address: #{address}")
   logger.info("Description: #{description}")
-  logger.info("Date Received: #{date_received}")
-  logger.info("Supporting Documents Link: #{supporting_documents_link}")
+  logger.info("On Notice To: #{on_notice_to}")
+  logger.info("Detail URL: #{detail_url}")
   logger.info("-----------------------------------")
 
-  # Step 5: Ensure the entry does not already exist before inserting
+  # Check for existing entry
   existing_entry = db.execute("SELECT * FROM west_coast WHERE council_reference = ?", council_reference)
-
-  if existing_entry.empty?  # Only insert if the entry doesn't already exist
-    # Save data to the database
-    db.execute("INSERT INTO west_coast 
-      (council_reference, address, description, date_received, on_notice_to, supporting_documents_link, date_scraped) 
-      VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [council_reference, address, description, date_received, on_notice_to, supporting_documents_link, date_scraped])
-
+  if existing_entry.empty?
+    db.execute("INSERT INTO west_coast (council_reference, address, description, on_notice_to, document_description, date_scraped)  VALUES (?, ?, ?, ?, ?, ?)",
+      [council_reference, address, description, on_notice_to, detail_url, date_scraped])
     logger.info("Data for #{council_reference} saved to database.")
   else
     logger.info("Duplicate entry for document #{council_reference} found. Skipping insertion.")
   end
 end
+
 
 # Finish
 logger.info("Data has been successfully inserted into the database.")
